@@ -1,0 +1,16 @@
+{
+  "name": "http-trigger-function",
+  "version": "1.0.0",
+  "description": "An HTTP-triggered Azure Function",
+  "scripts": {
+    "start": "func start",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "dependencies": {
+    "azure-functions-core-tools": "^4.0.0"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
