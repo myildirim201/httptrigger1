@@ -1,83 +1,73 @@
+let scratchCount = 0;
 
-let canvas = document.getElementById("scratch");
-let context = canvas.getContext("2d");
+// Canvas setup for scratch effect
+const canvas = document.getElementById("scratch");
+const ctx = canvas.getContext("2d");
 
-const init = () => {
-  let gradientColor = context.createLinearGradient(0, 0, 135, 135);
-  gradientColor.addColorStop(0, "#d3d3d3");
-  gradientColor.addColorStop(1, "#808080");
-  context.fillStyle = gradientColor;
-  context.fillRect(0, 0, 200, 200);
-};
+let isDrawing = false;
 
-let mouseX = 0;
-let mouseY = 0;
-let isDragged = false;
+// Fill the canvas with a gray "scratchable" layer
+function initializeCanvas() {
+    ctx.fillStyle = "#999";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
 
-let events = {
-  mouse: {
-    down: "mousedown",
-    move: "mousemove",
-    up: "mouseup",
-  },
-  touch: {
-    down: "touchstart",
-    move: "touchmove",
-    up: "touchend",
-  },
-};
+// Function to "scratch off" the canvas
+function scratch(e) {
+    if (!isDrawing) return;
 
-let deviceType = "";
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
 
-const isTouchDevice = () => {
-  try {
-    document.createEvent("TouchEvent");
-    deviceType = "touch";
-    return true;
-  } catch (e) {
-    deviceType = "mouse";
-    return false;
-  }
-};
+    // Clear the scratched area (reveals the base)
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.beginPath();
+    ctx.arc(x, y, 20, 0, Math.PI * 2);
+    ctx.fill();
+}
 
-let rectLeft = canvas.getBoundingClientRect().left;
-let rectTop = canvas.getBoundingClientRect().top;
-
-const getXY = (e) => {
-  mouseX = (!isTouchDevice() ? e.pageX : e.touches[0].pageX) - rectLeft;
-  mouseY = (!isTouchDevice() ? e.pageY : e.touches[0].pageY) - rectTop;
-};
-
-isTouchDevice();
-canvas.addEventListener(events[deviceType].down, (event) => {
-  isDragged = true;
-  getXY(event);
-  scratch(mouseX, mouseY);
+// Mouse events for scratch effect
+canvas.addEventListener("mousedown", () => {
+    isDrawing = true;
+    scratchCount++;
+    console.log(`Scratch Count: ${scratchCount}`);
+    sendProgress("scratch", scratchCount);
 });
 
-canvas.addEventListener(events[deviceType].move, (event) => {
-  if (!isTouchDevice()) {
-    event.preventDefault();
-  }
-  if (isDragged) {
-    getXY(event);
-    scratch(mouseX, mouseY);
-  }
+canvas.addEventListener("mousemove", scratch);
+canvas.addEventListener("mouseup", () => (isDrawing = false));
+canvas.addEventListener("mouseleave", () => (isDrawing = false));
+
+// Send progress to SaveProgress function
+function sendProgress(eventType, count = 1) {
+    fetch("http://localhost:7071/api/SaveProgress", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventType: eventType, count: count })
+    })
+    .then((response) => response.json())
+    .then((data) => console.log("Progress Saved:", data))
+    .catch((error) => console.error("Error saving progress:", error));
+}
+
+// Retrieve progress
+function getProgress() {
+    fetch("http://localhost:7071/api/RetrieveProgress")
+        .then((response) => response.json())
+        .then((data) => {
+            alert(`Page Loads: ${data.pageLoads}, Scratch Count: ${data.scratch}`);
+        })
+        .catch((error) => console.error("Error retrieving progress:", error));
+}
+
+// Add a button to retrieve progress
+document.addEventListener("DOMContentLoaded", () => {
+    const button = document.createElement("button");
+    button.textContent = "Retrieve Progress";
+    button.onclick = getProgress;
+    document.body.appendChild(button);
+
+    // Initialize scratchable canvas
+    initializeCanvas();
 });
-
-canvas.addEventListener(events[deviceType].up, () => {
-  isDragged = false;
-});
-
-canvas.addEventListener("mouseleave", () => {
-  isDragged = false;
-});
-
-const scratch = (x, y) => {
-  context.globalCompositeOperation = "destination-out";
-  context.beginPath();
-  context.arc(x, y, 12, 0, 2 * Math.PI);
-  context.fill();
-};
-
-window.onload = init();
